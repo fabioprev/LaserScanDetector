@@ -107,6 +107,8 @@ namespace Data
 	
 	void LaserScanDetector::exec()
 	{
+		static unsigned long counter = 0;
+		
 		ObjectDetection objectDetected;
 		vector<Object> objects;
 		Vector3 objectPoseRobotFrame;
@@ -154,9 +156,13 @@ namespace Data
 		
 		mutex.unlock();
 		
-		objectDetected.objects = objects;
-		
-		publisherObjectDetected.publish(objectDetected);
+		if (objects.size() > 0)
+		{
+			objectDetected.id = counter++;
+			objectDetected.objects = objects;
+			
+			publisherObjectDetected.publish(objectDetected);
+		}
 	}
 	
 	void LaserScanDetector::updateLaserScan(const LaserScan::ConstPtr& message)
