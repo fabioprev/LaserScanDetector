@@ -1,0 +1,21 @@
+<package>
+	<description brief="LaserScanDetector">
+		LaserScanDetector
+	</description>
+	
+	<author>
+		Fabio
+	</author>
+	
+	<license>
+		BSD
+	</license>
+	
+	<review status="unreviewed" notes=""/>
+	
+	<url>
+		http://ros.org/wiki/LaserScanDetector
+	</url>
+	
+	<depend package="roscpp"/>
+</package>
