@@ -5,7 +5,7 @@ int main (int argc, char** argv)
 {
 	ros::init(argc,argv,"LaserScanDetector");
 	
-	LaserScanDetector laserScanDetector;
+	Data::LaserScanDetector laserScanDetector;
 	
 	while (ros::ok())
 	{
