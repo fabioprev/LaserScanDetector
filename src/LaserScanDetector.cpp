@@ -11,6 +11,11 @@ using geometry_msgs::Vector3;
 using nav_msgs::Odometry;
 using sensor_msgs::LaserScan;
 
+#define ERR(x)  cerr << "\033[22;31;1m" << x << "\033[0m";
+#define WARN(x) cerr << "\033[22;33;1m" << x << "\033[0m";
+#define INFO(x) cerr << "\033[22;37;1m" << x << "\033[0m";
+#define DEBUG(x)  cerr << "\033[22;34;1m" << x << "\033[0m";
+
 namespace Data
 {
 	LaserScanDetector::LaserScanDetector() : nodeHandle("~")
@@ -41,7 +46,7 @@ namespace Data
 	{
 		static Vector3 objectPoseRobotFrame;
 		static float cosTheta, dx, dy, robotDiameter = 0.3, sinTheta;
-		static int range = 5;
+		static int range = 15;
 		static int minIntervalRange, maxIntervalRange;
 		
 		dx = objectPoseGlobalFrame.x - robotPose.x;
@@ -135,6 +140,8 @@ namespace Data
 			
 			if (checkObjectDetection(robotPose->second,it->second))
 			{
+				WARN("Object detected (" << ros::Time::now().toNSec() << "): [" << it->second.x << "," << it->second.y << "]" << endl);
+				
 				dx = it->second.x - robotPose->second.x;
 				dy = it->second.y - robotPose->second.y;
 				
