@@ -5,6 +5,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <boost/thread/mutex.hpp>
+#include <fstream>
 
 namespace Data
 {
@@ -20,10 +21,12 @@ namespace Data
 			ros::Publisher publisherObjectDetected;
 			ros::Subscriber subscriberLaserScan;
 			boost::mutex mutex, mutexScan;
+			std::ofstream groundtruth;
 			double maxScanAngle, minScanAngle, maxReading, scanAngleIncrement;
 			int agentId;
 		
 			bool checkObjectDetection(const geometry_msgs::Vector3& robotPose, const geometry_msgs::Vector3& objectPoseGlobalFrame);
+			void writeGroundtruth();
 		
 		public:
 			LaserScanDetector();

@@ -1,9 +1,12 @@
 #include "LaserScanDetector.h"
+#include "Utils/Timestamp.h"
 #include <LaserScanDetector/Object.h>
 #include <LaserScanDetector/ObjectDetection.h>
 #include <tf/LinearMath/Matrix3x3.h>
+#include <sys/stat.h>
 
 using namespace std;
+using namespace PTracking;
 using LaserScanDetector::ObjectDetection;
 using LaserScanDetector::Object;
 using geometry_msgs::Quaternion;
@@ -20,11 +23,13 @@ namespace Data
 {
 	LaserScanDetector::LaserScanDetector() : nodeHandle("~")
 	{
+		string groundtruthDir;
 		int numberOfRobots;
 		
 		nodeHandle.getParam("agentId",agentId);
 		nodeHandle.getParam("numberOfRobots",numberOfRobots);
 		nodeHandle.getParam("maxReading",maxReading);
+		nodeHandle.getParam("groundtruthDir",groundtruthDir);
 		
 		for (int i = 0; i < numberOfRobots; ++i)
 		{
@@ -38,9 +43,36 @@ namespace Data
 		subscriberLaserScan = nodeHandle.subscribe("scan",1024,&LaserScanDetector::updateLaserScan,this);
 		
 		publisherObjectDetected = nodeHandle.advertise<ObjectDetection>("objectDetected",1);
+		
+		if (agentId == 0)
+		{
+			struct stat temp;
+			
+			if (stat(groundtruthDir.c_str(),&temp) == -1)
+			{
+				mkdir(groundtruthDir.c_str(),0775);
+			}
+			
+			stringstream s;
+			
+			s << groundtruthDir.c_str() << "/groundtruth_" << Timestamp().getStringRepresentation() << ".xml";
+			
+			groundtruth.open(s.str().c_str());
+			
+			groundtruth << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << endl;
+			groundtruth << "<dataset>" << endl;
+		}
 	}
 	
-	LaserScanDetector::~LaserScanDetector() {;}
+	LaserScanDetector::~LaserScanDetector()
+	{
+		if (agentId == 0)
+		{
+			groundtruth << "</dataset>";
+			
+			groundtruth.close();
+		}
+	}
 	
 	bool LaserScanDetector::checkObjectDetection(const Vector3& robotPose, const Vector3& objectPoseGlobalFrame)
 	{
@@ -140,8 +172,6 @@ namespace Data
 			
 			if (checkObjectDetection(robotPose->second,it->second))
 			{
-				WARN("Object detected (" << ros::Time::now().toNSec() << "): [" << it->second.x << "," << it->second.y << "]" << endl);
-				
 				dx = it->second.x - robotPose->second.x;
 				dy = it->second.y - robotPose->second.y;
 				
@@ -160,6 +190,8 @@ namespace Data
 				objects.push_back(object);
 			}
 		}
+		
+		if (agentId == 0) writeGroundtruth();
 		
 		mutex.unlock();
 		
@@ -207,5 +239,33 @@ namespace Data
 		else robotPose->second = currentRobotPose;
 		
 		mutex.unlock();
+	}
+	
+	void LaserScanDetector::writeGroundtruth()
+	{
+		static unsigned long groundtruthIterations = 0;
+		
+		groundtruth << "   <frame number=\"" << groundtruthIterations++ << "\">" << endl;
+		groundtruth << "      <objectlist>" << endl;
+		
+		for (map<string,Vector3>::const_iterator it = robotPoses.begin(); it != robotPoses.end(); ++it)
+		{
+			int id;
+			
+			string temp = it->first.substr(it->first.find("_") + 1);
+			
+			id = atoi(temp.substr(0,temp.rfind("/")).c_str());
+			
+			groundtruth << "         <object id=\"" << id << "\">" << endl;
+			groundtruth << "            <box h=\"0\" w=\"0\" xc=\"" << it->second.x << "\""
+						<< " yc=\"" << it->second.y << "\""
+						<< " hxc=\"" << it->second.x << "\""
+						<< " hyc=\"" << it->second.y << "\""
+						<< " b=\"" << it->second.x << "\""
+						<< "/>" << endl;
+			groundtruth << "         </object>" << endl;
+		}
+		
+		groundtruth << "      </objectlist>" << endl;
 	}
 }
