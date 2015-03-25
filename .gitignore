@@ -1,9 +1,5 @@
-# Building folder
-bin
-build
-lib
-msg_gen
-src/LaserScanDetector
+# LaserScanDetector
+groundtruth
 
 # Compiled Object files
 *.slo
