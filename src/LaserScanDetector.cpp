@@ -35,7 +35,7 @@ namespace Data
 		{
 			stringstream s;
 			
-			s << "/robot_" << i << "/base_pose_ground_truth";
+			s << "/robot" << i << "/base_pose_ground_truth";
 			
 			subscriberRobotPoses.push_back(nodeHandle.subscribe(s.str(),1024,&LaserScanDetector::updateRobotPose,this));
 		}
@@ -152,7 +152,7 @@ namespace Data
 		stringstream s;
 		float cosTheta, dx, dy, sinTheta;
 		
-		s << "/robot_" << agentId << "/odom";
+		s << "/robot" << agentId << "/odom";
 		
 		mutex.lock();
 		
@@ -235,7 +235,11 @@ namespace Data
 		
 		const map<string,Vector3>::iterator& robotPose = robotPoses.find(message->header.frame_id);
 		
-		if (robotPose == robotPoses.end()) robotPoses.insert(make_pair(message->header.frame_id,currentRobotPose));
+		if (robotPose == robotPoses.end())
+		{
+			robotPoses.insert(make_pair(message->header.frame_id,currentRobotPose));
+		}
+		
 		else robotPose->second = currentRobotPose;
 		
 		mutex.unlock();
