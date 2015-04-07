@@ -14,10 +14,10 @@ using geometry_msgs::Vector3;
 using nav_msgs::Odometry;
 using sensor_msgs::LaserScan;
 
-#define ERR(x)  cerr << "\033[22;31;1m" << x << "\033[0m";
-#define WARN(x) cerr << "\033[22;33;1m" << x << "\033[0m";
-#define INFO(x) cerr << "\033[22;37;1m" << x << "\033[0m";
-#define DEBUG(x)  cerr << "\033[22;34;1m" << x << "\033[0m";
+#define ERR(x)   cerr << "\033[22;31;1m" << x << "\033[0m";
+#define WARN(x)  cerr << "\033[22;33;1m" << x << "\033[0m";
+#define INFO(x)  cerr << "\033[22;37;1m" << x << "\033[0m";
+#define DEBUG(x) cerr << "\033[22;34;1m" << x << "\033[0m";
 
 namespace Data
 {
@@ -27,15 +27,27 @@ namespace Data
 		int numberOfRobots;
 		
 		nodeHandle.getParam("agentId",agentId);
-		nodeHandle.getParam("numberOfRobots",numberOfRobots);
-		nodeHandle.getParam("maxReading",maxReading);
 		nodeHandle.getParam("groundtruthDir",groundtruthDir);
+		nodeHandle.getParam("maxReading",maxReading);
+		nodeHandle.getParam("numberOfRobots",numberOfRobots);
+		nodeHandle.getParam("startingPreyRobot",startingPreyRobot);
+		nodeHandle.getParam("endingPreyRobot",endingPreyRobot);
 		
-		for (int i = 0; i < numberOfRobots; ++i)
+		for (int i = startingPreyRobot; i <= endingPreyRobot; ++i)
 		{
 			stringstream s;
 			
 			s << "/robot" << i << "/base_pose_ground_truth";
+			
+			subscriberRobotPoses.push_back(nodeHandle.subscribe(s.str(),1024,&LaserScanDetector::updateRobotPose,this));
+		}
+		
+		/// Subscribing myself for getting the robot pose.
+		if ((agentId < startingPreyRobot) || (agentId > endingPreyRobot))
+		{
+			stringstream s;
+			
+			s << "/robot" << agentId << "/base_pose_ground_truth";
 			
 			subscriberRobotPoses.push_back(nodeHandle.subscribe(s.str(),1024,&LaserScanDetector::updateRobotPose,this));
 		}
@@ -158,7 +170,7 @@ namespace Data
 		
 		const map<string,Vector3>::const_iterator& robotPose = robotPoses.find(s.str());
 		
-		/// Something nasty has just happened.
+		/// Robot pose not available yet.
 		if (robotPose == robotPoses.end())
 		{
 			mutex.unlock();
@@ -182,8 +194,20 @@ namespace Data
 				objectPoseRobotFrame.x =  cosTheta * dx + sinTheta * dy;
 				objectPoseRobotFrame.y = -sinTheta * dx + cosTheta * dy;
 				
+				int i, id;
+				
+				const string& temp = it->first.substr(1,it->first.find("/",1,1) - 1);
+				
+				for (i = (temp.size() - 1); i >= 0 ; --i)
+				{
+					if (!isdigit(temp[i])) break;
+				}
+				
+				id = atoi(temp.substr(i + 1,temp.size()).c_str());
+				
 				Object object;
 				
+				object.id = id;
 				object.x = objectPoseRobotFrame.x;
 				object.y = objectPoseRobotFrame.y;
 				
@@ -252,13 +276,18 @@ namespace Data
 		groundtruth << "   <frame number=\"" << groundtruthIterations++ << "\">" << endl;
 		groundtruth << "      <objectlist>" << endl;
 		
-		for (map<string,Vector3>::const_iterator it = robotPoses.begin(); it != robotPoses.end(); ++it)
+		for (map<string,Vector3>::iterator it = robotPoses.begin(); it != robotPoses.end(); ++it)
 		{
-			int id;
+			int i, id;
 			
-			string temp = it->first.substr(it->first.find("_") + 1);
+			const string& temp = it->first.substr(1,it->first.find("/",1,1) - 1);
 			
-			id = atoi(temp.substr(0,temp.rfind("/")).c_str());
+			for (i = (temp.size() - 1); i >= 0 ; --i)
+			{
+				if (!isdigit(temp[i])) break;
+			}
+			
+			id = atoi(temp.substr(i + 1,temp.size()).c_str());
 			
 			groundtruth << "         <object id=\"" << id << "\">" << endl;
 			groundtruth << "            <box h=\"0\" w=\"0\" xc=\"" << it->second.x << "\""

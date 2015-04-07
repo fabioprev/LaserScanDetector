@@ -23,7 +23,7 @@ namespace Data
 			boost::mutex mutex, mutexScan;
 			std::ofstream groundtruth;
 			double maxScanAngle, minScanAngle, maxReading, scanAngleIncrement;
-			int agentId;
+			int agentId, endingPreyRobot, startingPreyRobot;
 		
 			bool checkObjectDetection(const geometry_msgs::Vector3& robotPose, const geometry_msgs::Vector3& objectPoseGlobalFrame);
 			void writeGroundtruth();
