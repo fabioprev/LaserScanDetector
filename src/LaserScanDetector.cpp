@@ -10,6 +10,7 @@ using namespace PTracking;
 using LaserScanDetector::ObjectDetection;
 using LaserScanDetector::Object;
 using geometry_msgs::Quaternion;
+using geometry_msgs::PoseWithCovarianceStamped;
 using geometry_msgs::Vector3;
 using nav_msgs::Odometry;
 using sensor_msgs::LaserScan;
@@ -33,13 +34,14 @@ namespace Data
 		nodeHandle.getParam("startingPreyRobot",startingPreyRobot);
 		nodeHandle.getParam("endingPreyRobot",endingPreyRobot);
 		
+		/// I am using the base_pose_ground_truth because this node is gonna be used only in Stage.
 		for (int i = startingPreyRobot; i <= endingPreyRobot; ++i)
 		{
 			stringstream s;
 			
 			s << "/robot" << i << "/base_pose_ground_truth";
 			
-			subscriberRobotPoses.push_back(nodeHandle.subscribe(s.str(),1024,&LaserScanDetector::updateRobotPose,this));
+			subscriberRobotPoses.push_back(nodeHandle.subscribe(s.str(),1024,&LaserScanDetector::updatePreyRobotPose,this));
 		}
 		
 		/// Subscribing myself for getting the robot pose.
@@ -47,7 +49,7 @@ namespace Data
 		{
 			stringstream s;
 			
-			s << "/robot" << agentId << "/base_pose_ground_truth";
+			s << "/robot" << agentId << "/amcl_pose";
 			
 			subscriberRobotPoses.push_back(nodeHandle.subscribe(s.str(),1024,&LaserScanDetector::updateRobotPose,this));
 		}
@@ -242,7 +244,7 @@ namespace Data
 		mutexScan.unlock();
 	}
 	
-	void LaserScanDetector::updateRobotPose(const Odometry::ConstPtr& message)
+	void LaserScanDetector::updatePreyRobotPose(const Odometry::ConstPtr& message)
 	{
 		Vector3 currentRobotPose;
 		double roll, pitch, yaw;
@@ -259,11 +261,33 @@ namespace Data
 		
 		const map<string,Vector3>::iterator& robotPose = robotPoses.find(message->header.frame_id);
 		
-		if (robotPose == robotPoses.end())
-		{
-			robotPoses.insert(make_pair(message->header.frame_id,currentRobotPose));
-		}
+		if (robotPose == robotPoses.end()) robotPoses.insert(make_pair(message->header.frame_id,currentRobotPose));
+		else robotPose->second = currentRobotPose;
 		
+		mutex.unlock();
+	}
+	
+	void LaserScanDetector::updateRobotPose(const PoseWithCovarianceStamped::ConstPtr& message)
+	{
+		Vector3 currentRobotPose;
+		stringstream s;
+		double roll, pitch, yaw;
+		
+		const Quaternion& q = message->pose.pose.orientation;
+		
+		tf::Matrix3x3(tf::Quaternion(q.x,q.y,q.z,q.w)).getRPY(roll,pitch,yaw);
+		
+		mutex.lock();
+		
+		currentRobotPose.x = message->pose.pose.position.x;
+		currentRobotPose.y = message->pose.pose.position.y;
+		currentRobotPose.z = yaw;
+		
+		s << "/robot" << agentId << "/odom";
+		
+		const map<string,Vector3>::iterator& robotPose = robotPoses.find(s.str());
+		
+		if (robotPose == robotPoses.end()) robotPoses.insert(make_pair(s.str(),currentRobotPose));
 		else robotPose->second = currentRobotPose;
 		
 		mutex.unlock();
